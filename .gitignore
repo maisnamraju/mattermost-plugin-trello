@@ -18,3 +18,4 @@ coverage.txt
 dist
 
 node_modules/
+desploy.sh

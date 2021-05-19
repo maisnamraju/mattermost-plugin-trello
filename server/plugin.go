@@ -1,18 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
 	"sync"
 
-	"github.com/adlio/trello"
-	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost-server/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
+	"github.com/pkg/errors"
 )
 
 const (
-	botUserName    = "trello"
+	botUsername    = "trello"
 	botDisplayName = "Trello"
 	botDescription = "Created by the Trello Plugin."
 
@@ -28,71 +25,32 @@ const (
 type TrelloPlugin struct {
 	plugin.MattermostPlugin
 
-	botID string
+	botUserID string
 
 	configurationLock sync.RWMutex
 
 	// configuration is the active plugin configuration. Consult getConfiguration and
 	// setConfiguration for usage.
 	configuration *Configuration
-
-	router *mux.Router
 }
 
-func (p *TrelloPlugin) CreateBoard(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	var client = p.CreateClient(token)
+// OnActivate ensure the bot account exists
+func (p *TrelloPlugin) OnActivate() error {
+	bot := &model.Bot{
+		Username:    botUsername,
+		DisplayName: botDisplayName,
+		Description: botDescription,
+	}
+	botUserID, appErr := p.Helpers.EnsureBot(bot)
+	if appErr != nil {
+		return errors.Wrap(appErr, "failed to ensure bot user")
+	}
+	p.botUserID = botUserID
 
-	board := trello.NewBoard(r.URL.Query().Get("name"))
-	board.Desc = r.URL.Query().Get("desc")
-
-	// POST
-	err := client.CreateBoard(&board, trello.Defaults())
+	err := p.API.RegisterCommand(getCommand())
 	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Fprint(w, "Board Created")
-}
-
-func (p *TrelloPlugin) ListBoards(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	var client = p.CreateClient(token)
-
-	boards, err := client.GetMyBoards()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Print(w, boards)
-}
-
-func (p *TrelloPlugin) CreateCard(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	var client = p.CreateClient(token)
-
-	card := trello.Card{
-		Name: r.URL.Query().Get("name"),
-		Desc: r.URL.Query().Get("desc"),
-	}
-	err := client.CreateCard(&card, trello.Defaults())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Print(w, card)
-}
-
-func (p *TrelloPlugin) ListCards(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	var client = p.CreateClient(token)
-
-	board, err := client.GetBoard(r.URL.Query().Get("id"), trello.Defaults())
-	if err != nil {
-		log.Fatalln(err)
-	}
-	cards, err := board.GetCards(trello.Defaults())
-	if err != nil {
-		// Handle error
-		log.Fatalln(err)
+		return errors.Wrap(err, "failed to register command")
 	}
 
-	fmt.Println(w, cards)
+	return nil
 }

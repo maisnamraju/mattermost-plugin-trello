@@ -48,12 +48,12 @@ func (p *TrelloPlugin) GetConfiguration() *Configuration {
 	return p.configuration
 }
 
-func (p *TrelloPlugin) CreateClient(token string) *trello.Client {
+func (p *TrelloPlugin) CreateClient() *trello.Client {
 	p.configurationLock.RLock()
 	defer p.configurationLock.RUnlock()
 
 	var config = p.configuration
-	return trello.NewClient(config.TrelloOAuthSecret, token)
+	return trello.NewClient(config.TrelloOAuthSecret, "3fahqnjhdpr35jmpuwj9qykctw")
 }
 
 // setconfiguration replaces the active configuration under lock.
